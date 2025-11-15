@@ -9,6 +9,7 @@ Description: An R implementation of CellType-NN, a deep learning framework for
     cell type prediction from single-cell multi-modal data including scRNA-seq,
     CITE-seq, and ATAC-seq. Provides neural network architectures, preprocessing
     pipelines, and evaluation metrics for automated cell type classification.
+    Supports both Seurat and SingleCellExperiment objects.
 License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
@@ -31,9 +32,12 @@ Imports:
 Suggests:
     SeuratDisk,
     SingleCellExperiment,
+    SummarizedExperiment,
     scater,
+    scran,
     harmony,
     sctransform,
+    Signac,
     testthat (>= 3.0.0),
     knitr,
     rmarkdown

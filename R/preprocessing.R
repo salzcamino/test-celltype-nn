@@ -1,22 +1,45 @@
 #' Preprocess RNA-seq Data
 #'
-#' Normalize and preprocess scRNA-seq data using Seurat pipeline
+#' Normalize and preprocess scRNA-seq data (supports Seurat and SingleCellExperiment)
 #'
-#' @param seurat_obj Seurat object containing RNA-seq data
+#' @param obj Seurat or SingleCellExperiment object containing RNA-seq data
 #' @param n_hvgs Number of highly variable genes to select (default: 2000)
 #' @param min_cells Minimum number of cells expressing a gene (default: 3)
 #' @param min_features Minimum number of features per cell (default: 200)
 #' @param normalization_method Normalization method: "LogNormalize" or "SCT" (default: "LogNormalize")
 #' @param scale_factor Scale factor for normalization (default: 10000)
-#' @return Processed Seurat object
+#' @return Processed object (same type as input)
 #' @export
 #' @importFrom Seurat NormalizeData
-preprocess_rna <- function(seurat_obj,
+preprocess_rna <- function(obj,
                            n_hvgs = 2000,
                            min_cells = 3,
                            min_features = 200,
                            normalization_method = "LogNormalize",
                            scale_factor = 10000) {
+
+  # Dispatch to appropriate preprocessing function
+  if (is_seurat(obj)) {
+    return(preprocess_rna_seurat(obj, n_hvgs, min_cells, min_features,
+                                 normalization_method, scale_factor))
+  } else if (is_sce(obj)) {
+    return(preprocess_rna_sce(obj, n_hvgs, min_cells, min_features,
+                              normalization_method, scale_factor))
+  } else {
+    stop("Object must be either Seurat or SingleCellExperiment")
+  }
+}
+
+
+#' Preprocess RNA-seq Data (Seurat)
+#'
+#' @keywords internal
+preprocess_rna_seurat <- function(seurat_obj,
+                                  n_hvgs = 2000,
+                                  min_cells = 3,
+                                  min_features = 200,
+                                  normalization_method = "LogNormalize",
+                                  scale_factor = 10000) {
 
   # Quality control filtering
   message("Filtering cells and genes...")
@@ -64,6 +87,65 @@ preprocess_rna <- function(seurat_obj,
 
   message("Preprocessing complete!")
   return(seurat_obj)
+}
+
+
+#' Preprocess RNA-seq Data (SingleCellExperiment)
+#'
+#' @keywords internal
+preprocess_rna_sce <- function(sce,
+                               n_hvgs = 2000,
+                               min_cells = 3,
+                               min_features = 200,
+                               normalization_method = "LogNormalize",
+                               scale_factor = 10000) {
+
+  if (!requireNamespace("scater", quietly = TRUE)) {
+    stop("Please install scater package: BiocManager::install('scater')")
+  }
+
+  # Quality control filtering
+  message("Filtering cells and genes...")
+
+  # Filter genes: keep genes expressed in at least min_cells
+  if ("counts" %in% SummarizedExperiment::assayNames(sce)) {
+    gene_counts <- Matrix::rowSums(SummarizedExperiment::assay(sce, "counts") > 0)
+    genes_keep <- gene_counts >= min_cells
+    sce <- sce[genes_keep, ]
+
+    # Filter cells: keep cells with at least min_features
+    cell_features <- Matrix::colSums(SummarizedExperiment::assay(sce, "counts") > 0)
+    cells_keep <- cell_features >= min_features
+    sce <- sce[, cells_keep]
+
+    message(paste("Kept", ncol(sce), "cells and", nrow(sce), "genes"))
+
+    # Normalization
+    message(paste("Normalizing data using", normalization_method, "..."))
+    if (normalization_method == "LogNormalize") {
+      # Calculate size factors
+      sce <- scater::logNormCounts(sce, size_factors = NULL)
+
+      # Find highly variable genes
+      if (requireNamespace("scran", quietly = TRUE)) {
+        message(paste("Finding", n_hvgs, "highly variable genes using scran..."))
+        dec <- scran::modelGeneVar(sce)
+        hvg <- scran::getTopHVGs(dec, n = n_hvgs)
+        SummarizedExperiment::rowData(sce)$highly_variable <-
+          rownames(sce) %in% hvg
+      } else {
+        warning("scran not installed. Cannot select highly variable genes. Install with: BiocManager::install('scran')")
+      }
+    } else {
+      stop("SCT normalization not supported for SingleCellExperiment. Use 'LogNormalize'")
+    }
+
+  } else {
+    stop("Counts assay not found in SingleCellExperiment")
+  }
+
+  message("Preprocessing complete!")
+  return(sce)
 }
 
 

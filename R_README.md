@@ -10,6 +10,7 @@ This R package provides a complete implementation of neural network-based cell t
 - **Neural network models**: Feedforward networks and multi-modal architectures using Keras/TensorFlow
 - **Training pipeline**: Automated training with early stopping, learning rate scheduling, and model checkpointing
 - **Evaluation**: Comprehensive metrics, visualizations, and classification reports
+- **Dual object support**: Works seamlessly with both **Seurat** and **SingleCellExperiment** objects
 
 ## Installation
 
@@ -26,10 +27,11 @@ install.packages(c("Seurat", "keras", "tensorflow", "Matrix", "ggplot2",
                    "dplyr", "tidyr", "purrr", "caret", "reticulate",
                    "yaml", "R6"))
 
-# Install from Bioconductor (optional, for additional features)
+# Install from Bioconductor (for SingleCellExperiment support)
 if (!requireNamespace("BiocManager", quietly = TRUE))
     install.packages("BiocManager")
-BiocManager::install(c("SingleCellExperiment", "scater"))
+BiocManager::install(c("SingleCellExperiment", "SummarizedExperiment",
+                       "scater", "scran"))
 
 # Install SeuratDisk for H5AD file support
 remotes::install_github("mojaveazure/seurat-disk")
@@ -151,6 +153,80 @@ Rscript R_scripts/predict.R \
   label_encoder=results/rna_classifier/label_encoder.rds \
   cell_type_col=cell_type
 ```
+
+## Working with SingleCellExperiment Objects
+
+The package fully supports **SingleCellExperiment** objects in addition to Seurat. All main functions work seamlessly with both object types.
+
+### Basic Usage with SingleCellExperiment
+
+```r
+library(celltypeNN)
+library(SingleCellExperiment)
+
+# Load SingleCellExperiment object
+sce <- readRDS("path/to/sce_object.rds")
+
+# Or load from file and convert to SCE
+sce <- load_anndata("path/to/data.h5ad", return_type = "sce")
+
+# Preprocess using scater/scran
+sce <- preprocess_rna(
+  sce,
+  n_hvgs = 2000,
+  min_cells = 3,
+  min_features = 200,
+  normalization_method = "LogNormalize"
+)
+
+# Split data (returns SCE objects)
+data_splits <- split_data(
+  sce,
+  train_frac = 0.7,
+  val_frac = 0.15,
+  test_frac = 0.15,
+  cell_type_col = "cell_type"
+)
+
+# Create data loaders (automatically detects SCE)
+train_loader <- create_dataloaders(data_splits$train, cell_type_col = "cell_type")
+val_loader <- create_dataloaders(data_splits$validation, cell_type_col = "cell_type")
+
+# Rest of the workflow is identical to Seurat
+model <- CellTypeClassifier$new(
+  n_features = train_loader$n_features,
+  n_classes = train_loader$n_classes
+)
+# ... train and evaluate as usual
+```
+
+### Converting Between Seurat and SingleCellExperiment
+
+```r
+# Convert Seurat to SingleCellExperiment
+sce <- seurat_to_sce(seurat_obj)
+
+# Convert SingleCellExperiment to Seurat
+seurat_obj <- sce_to_seurat(sce)
+
+# Check object type
+is_seurat(obj)  # Returns TRUE if Seurat
+is_sce(obj)     # Returns TRUE if SingleCellExperiment
+
+# Load file and specify return type
+seurat_obj <- load_anndata("data.rds", return_type = "seurat")
+sce <- load_anndata("data.rds", return_type = "sce")
+```
+
+### SingleCellExperiment-specific Notes
+
+- **Assay names**: Uses `logcounts` by default (vs `data` slot in Seurat)
+- **Metadata**: Accessed via `colData(sce)` instead of `@meta.data`
+- **HVG selection**: Uses `scran::modelGeneVar()` for feature selection
+- **Normalization**: Uses `scater::logNormCounts()` for log-normalization
+- **Conversions**: Automatic conversion preserves metadata and variable features
+
+All preprocessing, training, and evaluation functions automatically detect the object type and handle it appropriately.
 
 ## Multi-Modal Classification
 
