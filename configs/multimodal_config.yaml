@@ -1,0 +1,78 @@
+# Multi-modal configuration for RNA + CITE-seq + ATAC-seq
+
+# Experiment settings
+experiment:
+  name: "multimodal_classifier"
+  seed: 42
+  output_dir: "./outputs"
+
+# Data settings
+data:
+  file_path: "data/multimodal.h5mu"  # Path to MuData file
+  modalities: ["rna", "protein", "atac"]  # Available modalities
+  label_key: "cell_type"
+  use_raw: false
+  batch_size: 128
+  num_workers: 4
+  train_size: 0.7
+  val_size: 0.15
+  test_size: 0.15
+  stratify: true
+
+# Preprocessing settings per modality
+preprocessing:
+  rna:
+    min_genes: 200
+    min_cells: 3
+    n_top_genes: 2000
+    normalize: true
+    log_transform: true
+    target_sum: 10000
+
+  protein:
+    normalize: true
+    log_transform: true
+    clr_transform: false  # Centered log-ratio transform
+
+  atac:
+    normalize: true
+    log_transform: true
+    tf_idf: false  # TF-IDF transformation
+    binary: false  # Binarize peaks
+
+# Model settings
+model:
+  type: "multimodal"  # multimodal or multimodal_missing
+  embedding_dim: 64  # Embedding dimension for each modality
+  modality_hidden_dims: [256, 128]  # Hidden dims for modality encoders
+  classifier_dims: [128, 64]  # Hidden dims for classifier
+  dropout_rate: 0.3
+  fusion_strategy: "concat"  # Options: concat, attention
+  shared_dim: 128  # For multimodal_missing type
+
+# Training settings
+training:
+  max_epochs: 100
+  learning_rate: 0.001
+  weight_decay: 0.00001
+  optimizer: "adamw"
+  scheduler: "cosine"
+  gradient_clip_val: 1.0
+  early_stopping_patience: 15
+  early_stopping_metric: "val/loss"
+  early_stopping_mode: "min"
+
+# Hardware settings
+hardware:
+  accelerator: "auto"
+  devices: 1
+  precision: "32"
+
+# Logging settings
+logging:
+  use_wandb: false
+  wandb_project: "celltype-nn-multimodal"
+  wandb_entity: null
+  save_checkpoints: true
+  checkpoint_dir: "checkpoints"
+  log_every_n_steps: 50

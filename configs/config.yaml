@@ -1,0 +1,66 @@
+# Main configuration file for cell type prediction
+
+# Experiment settings
+experiment:
+  name: "rna_baseline"
+  seed: 42
+  output_dir: "./outputs"
+
+# Data settings
+data:
+  file_path: "data/example.h5ad"  # Path to AnnData or MuData file
+  label_key: "cell_type"
+  use_raw: false
+  batch_size: 256
+  num_workers: 4
+  train_size: 0.7
+  val_size: 0.15
+  test_size: 0.15
+  stratify: true
+
+# Preprocessing settings
+preprocessing:
+  min_genes: 200
+  min_cells: 3
+  n_top_genes: 2000
+  normalize: true
+  log_transform: true
+  scale: false
+  target_sum: 10000
+
+# Model settings
+model:
+  type: "rna_classifier"  # Options: rna_classifier, rna_attention, rna_vae, multimodal
+  input_dim: 2000  # Will be set automatically based on data
+  hidden_dims: [512, 256, 128]
+  dropout_rate: 0.3
+  batch_norm: true
+  activation: "relu"  # Options: relu, gelu, leaky_relu
+
+# Training settings
+training:
+  max_epochs: 100
+  learning_rate: 0.001
+  weight_decay: 0.00001
+  optimizer: "adamw"  # Options: adam, adamw, sgd
+  scheduler: "cosine"  # Options: cosine, step, plateau, null
+  use_focal_loss: false
+  gradient_clip_val: 1.0
+  early_stopping_patience: 10
+  early_stopping_metric: "val/loss"
+  early_stopping_mode: "min"
+
+# Hardware settings
+hardware:
+  accelerator: "auto"  # auto, gpu, cpu
+  devices: 1
+  precision: "32"  # 32, 16, bf16
+
+# Logging settings
+logging:
+  use_wandb: false
+  wandb_project: "celltype-nn"
+  wandb_entity: null
+  save_checkpoints: true
+  checkpoint_dir: "checkpoints"
+  log_every_n_steps: 50
