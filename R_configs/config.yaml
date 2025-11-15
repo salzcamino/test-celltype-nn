@@ -1,0 +1,49 @@
+# CellType-NN R Configuration File
+# Configuration for training RNA-based cell type classifier
+
+# Data configuration
+data:
+  input_file: "data/pbmc.h5ad"  # or .rds for Seurat objects
+  cell_type_col: "cell_type"
+  output_dir: "results/rna_classifier"
+
+# Preprocessing parameters
+preprocessing:
+  n_hvgs: 2000
+  min_cells: 3
+  min_features: 200
+  normalization_method: "LogNormalize"  # or "SCT"
+  scale_factor: 10000
+  batch_correction: null  # or "harmony" / "combat"
+  batch_col: null  # e.g., "batch"
+
+# Data splitting
+split:
+  train_frac: 0.7
+  val_frac: 0.15
+  test_frac: 0.15
+  seed: 42
+
+# Model architecture
+model:
+  type: "CellTypeClassifier"  # or "MultiModalClassifier"
+  hidden_dims: [512, 256, 128]
+  dropout_rate: 0.3
+  activation: "relu"
+  use_batch_norm: true
+
+# Training parameters
+training:
+  epochs: 100
+  batch_size: 64
+  optimizer: "adam"
+  learning_rate: 0.001
+  early_stopping_patience: 10
+  checkpoint_dir: "checkpoints"
+  verbose: 1
+
+# Evaluation
+evaluation:
+  compute_per_class: true
+  save_predictions: true
+  save_plots: true

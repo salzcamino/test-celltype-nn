@@ -1,0 +1,41 @@
+Package: celltypeNN
+Type: Package
+Title: Deep Learning Framework for Cell Type Prediction from Single-Cell Multi-Modal Data
+Version: 0.1.0
+Authors@R: c(
+    person("Your", "Name", email = "your.email@example.com", role = c("aut", "cre"))
+    )
+Description: An R implementation of CellType-NN, a deep learning framework for
+    cell type prediction from single-cell multi-modal data including scRNA-seq,
+    CITE-seq, and ATAC-seq. Provides neural network architectures, preprocessing
+    pipelines, and evaluation metrics for automated cell type classification.
+License: MIT + file LICENSE
+Encoding: UTF-8
+LazyData: true
+Depends:
+    R (>= 4.0.0)
+Imports:
+    Seurat (>= 4.0.0),
+    keras (>= 2.9.0),
+    tensorflow (>= 2.9.0),
+    Matrix,
+    methods,
+    ggplot2,
+    dplyr,
+    tidyr,
+    purrr,
+    caret,
+    reticulate,
+    yaml,
+    R6
+Suggests:
+    SeuratDisk,
+    SingleCellExperiment,
+    scater,
+    harmony,
+    sctransform,
+    testthat (>= 3.0.0),
+    knitr,
+    rmarkdown
+VignetteBuilder: knitr
+RoxygenNote: 7.2.0
