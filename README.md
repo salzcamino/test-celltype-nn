@@ -1,15 +1,32 @@
 # CellType-NN: Deep Learning for Cell Type Prediction
 
-A PyTorch-based deep learning framework for predicting cell type annotations from single-cell multi-modal data (scRNA-seq, CITE-seq, ATAC-seq).
+A deep learning framework for predicting cell type annotations from single-cell multi-modal data (scRNA-seq, CITE-seq, ATAC-seq).
+
+## Available Implementations
+
+CellType-NN is available in **two implementations**:
+
+1. **Python (PyTorch)** - Main implementation (this README)
+   - PyTorch Lightning framework
+   - Scanpy for single-cell analysis
+   - See sections below for Python usage
+
+2. **R (Keras/TensorFlow)** - R package implementation
+   - Seurat for single-cell analysis
+   - Keras/TensorFlow for deep learning
+   - See [R_README.md](R_README.md) for R usage
+
+Both implementations provide the same core functionality and produce comparable results. Choose based on your preferred language and existing workflow.
 
 ## Features
 
 - **Multi-modal Support**: Handle RNA-seq, protein (CITE-seq), and chromatin accessibility (ATAC-seq) data
 - **Flexible Architecture**: Multiple model architectures including feedforward networks, attention mechanisms, and VAEs
-- **PyTorch Lightning**: Clean, modular training with automatic logging and checkpointing
+- **PyTorch Lightning**: Clean, modular training with automatic logging and checkpointing (Python) / Keras callbacks (R)
 - **Scalable**: Designed to handle large single-cell datasets with efficient data loading
 - **Comprehensive Evaluation**: Built-in metrics, confusion matrices, and visualization tools
 - **Configuration-driven**: Easy experimentation with YAML configuration files
+- **Cross-platform**: Available in both Python and R
 
 ## Installation
 
@@ -386,10 +403,29 @@ For issues and questions:
 - Check the documentation
 - See example notebooks in `notebooks/`
 
+## R Implementation
+
+If you prefer working in R, we provide a full R implementation with Seurat and Keras. See **[R_README.md](R_README.md)** for:
+
+- Installation instructions for R package
+- Quick start guide with Seurat objects
+- Example R scripts and vignettes
+- Multi-modal analysis in R
+- Complete API documentation
+
+The R implementation provides feature parity with Python and integrates seamlessly with the Seurat ecosystem.
+
 ## Acknowledgments
 
 Built with:
+
+**Python Implementation:**
 - [PyTorch](https://pytorch.org/)
 - [PyTorch Lightning](https://lightning.ai/)
 - [Scanpy](https://scanpy.readthedocs.io/)
 - [Muon](https://muon.readthedocs.io/)
+
+**R Implementation:**
+- [Seurat](https://satijalab.org/seurat/)
+- [Keras for R](https://keras.rstudio.com/)
+- [TensorFlow for R](https://tensorflow.rstudio.com/)

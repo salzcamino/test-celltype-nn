@@ -1,0 +1,336 @@
+---
+title: "Getting Started with celltypeNN"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Getting Started with celltypeNN}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  eval = FALSE  # Set to TRUE if you have example data
+)
+```
+
+# Introduction
+
+This vignette demonstrates how to use the celltypeNN package for cell type prediction from single-cell RNA-seq data using deep learning.
+
+## Installation
+
+```{r install, eval=FALSE}
+# Install dependencies
+install.packages(c("Seurat", "keras", "tensorflow", "ggplot2", "dplyr"))
+
+# Install TensorFlow
+library(tensorflow)
+install_tensorflow()
+
+# Load package
+library(celltypeNN)
+```
+
+## Load and Preprocess Data
+
+First, let's load some example single-cell RNA-seq data. The data should be in Seurat or AnnData format.
+
+```{r load_data}
+library(celltypeNN)
+library(Seurat)
+
+# Load data (replace with your data path)
+# Option 1: Load H5AD file
+# seurat_obj <- load_anndata("path/to/data.h5ad")
+
+# Option 2: Load Seurat RDS file
+# seurat_obj <- readRDS("path/to/seurat_object.rds")
+
+# For demonstration, create example data
+set.seed(42)
+counts <- matrix(
+  rpois(10000, lambda = 5),
+  nrow = 500,  # genes
+  ncol = 200   # cells
+)
+rownames(counts) <- paste0("Gene_", 1:500)
+colnames(counts) <- paste0("Cell_", 1:200)
+
+# Create Seurat object
+seurat_obj <- CreateSeuratObject(counts = counts)
+
+# Add cell type labels (normally these come with your data)
+seurat_obj$cell_type <- sample(
+  c("T cell", "B cell", "Monocyte", "NK cell"),
+  ncol(seurat_obj),
+  replace = TRUE
+)
+
+print(seurat_obj)
+```
+
+### Preprocess RNA Data
+
+```{r preprocess}
+# Quality control and normalization
+seurat_obj <- preprocess_rna(
+  seurat_obj,
+  n_hvgs = 2000,          # Select 2000 highly variable genes
+  min_cells = 3,          # Keep genes expressed in >= 3 cells
+  min_features = 200,     # Keep cells with >= 200 features
+  normalization_method = "LogNormalize",
+  scale_factor = 10000
+)
+
+cat("Preprocessed data dimensions:", dim(seurat_obj), "\n")
+```
+
+## Split Data into Train/Validation/Test Sets
+
+```{r split_data}
+# Stratified split by cell type
+data_splits <- split_data(
+  seurat_obj,
+  train_frac = 0.7,
+  val_frac = 0.15,
+  test_frac = 0.15,
+  cell_type_col = "cell_type",
+  seed = 42
+)
+
+cat("Training set:", ncol(data_splits$train), "cells\n")
+cat("Validation set:", ncol(data_splits$validation), "cells\n")
+cat("Test set:", ncol(data_splits$test), "cells\n")
+```
+
+## Create Data Loaders
+
+```{r create_loaders}
+# Prepare data for neural network training
+train_loader <- create_dataloaders(
+  data_splits$train,
+  cell_type_col = "cell_type"
+)
+
+val_loader <- create_dataloaders(
+  data_splits$validation,
+  cell_type_col = "cell_type"
+)
+
+test_loader <- create_dataloaders(
+  data_splits$test,
+  cell_type_col = "cell_type"
+)
+
+cat("Number of features:", train_loader$n_features, "\n")
+cat("Number of classes:", train_loader$n_classes, "\n")
+cat("Classes:", names(train_loader$label_encoder), "\n")
+```
+
+## Build Neural Network Model
+
+```{r build_model}
+# Create cell type classifier
+model <- CellTypeClassifier$new(
+  n_features = train_loader$n_features,
+  n_classes = train_loader$n_classes,
+  hidden_dims = c(512, 256, 128),  # Three hidden layers
+  dropout_rate = 0.3,
+  activation = "relu",
+  use_batch_norm = TRUE
+)
+
+# View model architecture
+model$summary()
+```
+
+## Compile Model
+
+```{r compile_model}
+# Set optimizer and loss function
+model$compile_model(
+  optimizer = "adam",
+  learning_rate = 0.001,
+  loss = "sparse_categorical_crossentropy"
+)
+```
+
+## Train Model
+
+```{r train_model}
+# Train with early stopping
+history <- train_model(
+  model = model,
+  train_data = train_loader,
+  val_data = val_loader,
+  epochs = 100,
+  batch_size = 64,
+  early_stopping_patience = 10,
+  checkpoint_dir = "./checkpoints",
+  verbose = 1
+)
+```
+
+## Visualize Training History
+
+```{r plot_history, fig.width=10, fig.height=8}
+# Plot training curves
+plot_training_history(history)
+```
+
+## Make Predictions
+
+```{r predict}
+# Predict on test set
+predictions <- predict_celltypes(
+  model = model,
+  data_loader = test_loader,
+  label_encoder = train_loader$label_encoder
+)
+
+# View first few predictions
+head(data.frame(
+  predicted = predictions$predictions,
+  true = predictions$true_labels,
+  confidence = apply(predictions$probabilities, 1, max)
+))
+```
+
+## Evaluate Model Performance
+
+```{r evaluate}
+# Compute metrics
+metrics <- evaluate_model(predictions, compute_per_class = TRUE)
+
+# Print classification report
+cat(classification_report(metrics))
+```
+
+### Confusion Matrix
+
+```{r confusion_matrix, fig.width=8, fig.height=6}
+plot_confusion_matrix(metrics$confusion_matrix, normalize = TRUE)
+```
+
+### Per-Class Metrics
+
+```{r per_class_metrics, fig.width=10, fig.height=6}
+plot_metrics(metrics)
+```
+
+## Save Results
+
+```{r save_results}
+# Save trained model
+model$save("trained_model.h5")
+
+# Save label encoder
+saveRDS(train_loader$label_encoder, "label_encoder.rds")
+
+# Save predictions
+save_predictions(
+  predictions,
+  "predictions.csv",
+  include_probabilities = TRUE
+)
+
+# Save metrics
+saveRDS(metrics, "metrics.rds")
+```
+
+## Load and Use Saved Model
+
+```{r load_model}
+# Load saved model for prediction on new data
+loaded_model <- keras::load_model_hdf5("trained_model.h5")
+label_encoder <- readRDS("label_encoder.rds")
+
+# Make predictions on new data
+# new_predictions <- predict_celltypes(
+#   model = loaded_model,
+#   data_loader = new_data_loader,
+#   label_encoder = label_encoder
+# )
+```
+
+# Advanced Topics
+
+## Multi-Modal Classification
+
+For datasets with multiple modalities (RNA + protein + ATAC):
+
+```{r multimodal, eval=FALSE}
+# Create multi-modal classifier
+multimodal_model <- MultiModalClassifier$new(
+  n_rna_features = 2000,
+  n_protein_features = 50,
+  n_atac_features = 100,
+  n_classes = 10,
+  embedding_dim = 64,
+  fusion_method = "concat"
+)
+
+multimodal_model$compile_model(
+  optimizer = "adam",
+  learning_rate = 0.001
+)
+
+# Prepare multi-modal data
+train_data <- list(
+  rna = rna_matrix,
+  protein = protein_matrix,
+  atac = atac_matrix,
+  labels = labels
+)
+
+val_data <- list(
+  rna = val_rna_matrix,
+  protein = val_protein_matrix,
+  atac = val_atac_matrix,
+  labels = val_labels
+)
+
+# Train
+history <- train_multimodal_model(
+  model = multimodal_model,
+  train_data = train_data,
+  val_data = val_data,
+  epochs = 100,
+  batch_size = 64
+)
+```
+
+## Batch Correction
+
+If your data has batch effects:
+
+```{r batch_correction, eval=FALSE}
+# Apply Harmony batch correction
+seurat_obj <- batch_correction(
+  seurat_obj,
+  batch_col = "batch",
+  method = "harmony"
+)
+```
+
+## Custom Model Architectures
+
+```{r custom_model, eval=FALSE}
+# Build deeper network
+deep_model <- CellTypeClassifier$new(
+  n_features = 2000,
+  n_classes = 10,
+  hidden_dims = c(1024, 512, 256, 128, 64),  # 5 hidden layers
+  dropout_rate = 0.4,
+  activation = "relu",
+  use_batch_norm = TRUE
+)
+```
+
+# Session Info
+
+```{r session_info}
+sessionInfo()
+```
