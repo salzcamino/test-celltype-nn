@@ -1,0 +1,54 @@
+# GPU-optimized configuration for local PC with NVIDIA GPU
+
+experiment:
+  name: "rna_gpu_training"
+  seed: 42
+  output_dir: "./outputs"
+
+data:
+  file_path: "data/example.h5ad"
+  label_key: "cell_type"
+  use_raw: false
+  batch_size: 256  # Larger batch size for GPU
+  num_workers: 4  # More workers for data loading
+  train_size: 0.7
+  val_size: 0.15
+  test_size: 0.15
+  stratify: true
+
+preprocessing:
+  min_genes: 200
+  min_cells: 3
+  n_top_genes: 2000
+  normalize: true
+  log_transform: true
+  target_sum: 10000
+
+model:
+  type: "rna_classifier"
+  hidden_dims: [512, 256, 128]  # Full-size network
+  dropout_rate: 0.3
+  batch_norm: true
+  activation: "relu"
+
+training:
+  max_epochs: 100
+  learning_rate: 0.001
+  weight_decay: 0.00001
+  optimizer: "adamw"
+  scheduler: "cosine"
+  gradient_clip_val: 1.0
+  early_stopping_patience: 10
+  early_stopping_metric: "val/loss"
+  early_stopping_mode: "min"
+
+hardware:
+  accelerator: "gpu"  # Use GPU if available
+  devices: 1
+  precision: "16-mixed"  # Mixed precision for faster training (requires modern GPU)
+
+logging:
+  use_wandb: false
+  save_checkpoints: true
+  checkpoint_dir: "checkpoints"
+  log_every_n_steps: 50

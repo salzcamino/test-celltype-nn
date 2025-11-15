@@ -1,0 +1,54 @@
+# CPU-optimized configuration for local PC training
+
+experiment:
+  name: "rna_cpu_training"
+  seed: 42
+  output_dir: "./outputs"
+
+data:
+  file_path: "data/example.h5ad"
+  label_key: "cell_type"
+  use_raw: false
+  batch_size: 64  # Smaller batch size for CPU
+  num_workers: 0  # Set to 0 on Windows, 2-4 on Linux/Mac
+  train_size: 0.7
+  val_size: 0.15
+  test_size: 0.15
+  stratify: true
+
+preprocessing:
+  min_genes: 200
+  min_cells: 3
+  n_top_genes: 1000  # Reduce features for faster training
+  normalize: true
+  log_transform: true
+  target_sum: 10000
+
+model:
+  type: "rna_classifier"
+  hidden_dims: [256, 128]  # Smaller network for CPU
+  dropout_rate: 0.3
+  batch_norm: true
+  activation: "relu"
+
+training:
+  max_epochs: 50  # Fewer epochs initially
+  learning_rate: 0.001
+  weight_decay: 0.00001
+  optimizer: "adamw"
+  scheduler: "cosine"
+  gradient_clip_val: 1.0
+  early_stopping_patience: 10
+  early_stopping_metric: "val/loss"
+  early_stopping_mode: "min"
+
+hardware:
+  accelerator: "cpu"  # Force CPU training
+  devices: 1
+  precision: "32"
+
+logging:
+  use_wandb: false
+  save_checkpoints: true
+  checkpoint_dir: "checkpoints"
+  log_every_n_steps: 50
